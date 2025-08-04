@@ -14,7 +14,12 @@ import hashlib
 from config.settings import settings
 
 # Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+try:
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+except Exception as e:
+    # Fallback for bcrypt version issues
+    print(f"Warning: bcrypt version issue: {e}")
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__default_rounds=12)
 
 # JWT Security
 security = HTTPBearer()
@@ -267,3 +272,37 @@ def get_user_api_keys(user_id: str) -> list:
                 **key_data
             })
     return user_keys
+
+def initialize_demo_data():
+    """Initialize demo users and data"""
+    # Only initialize if users_db is empty
+    if not users_db:
+        print("🚀 Initializing demo users...")
+        
+        # Create demo users with hashed passwords
+        demo_password_hash = hash_password("demo123")
+        
+        users_db["demo_user"] = {
+            "user_id": "demo_user",
+            "email": "demo@example.com",
+            "name": "Demo User",
+            "password": demo_password_hash,
+            "is_active": True,
+            "created_at": datetime.now()
+        }
+        
+        users_db["demo_user_high"] = {
+            "user_id": "demo_user_high",
+            "email": "demo_high@example.com",
+            "name": "Demo User (High Limit)",
+            "password": demo_password_hash,
+            "is_active": True,
+            "created_at": datetime.now()
+        }
+        
+        print("✅ Demo users initialized:")
+        print("   📧 demo@example.com / demo123")
+        print("   📧 demo_high@example.com / demo123")
+
+# Initialize demo data when module is imported
+initialize_demo_data()

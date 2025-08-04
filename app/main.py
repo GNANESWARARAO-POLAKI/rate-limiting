@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import OAuth2PasswordRequestForm
 import time
 from datetime import datetime, timedelta
 from typing import Optional
@@ -156,8 +157,28 @@ async def register_user_endpoint(user_data: UserRegistration):
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @app.post("/login")
-async def login_user_endpoint(user_credentials: UserLogin):
-    """Login user and return access token"""
+async def login_user_endpoint(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login user and return access token (OAuth2 format)"""
+    try:
+        result = login_user(form_data.username, form_data.password)
+        
+        return {
+            "user_id": result["user_id"],
+            "name": result["name"],
+            "email": result["email"],
+            "access_token": result["access_token"],
+            "token_type": result["token_type"],
+            "api_key": result["api_key"],
+            "message": result["message"]
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
+
+@app.post("/login-json")
+async def login_user_json_endpoint(user_credentials: UserLogin):
+    """Login user with JSON format"""
     try:
         result = login_user(user_credentials.email, user_credentials.password)
         

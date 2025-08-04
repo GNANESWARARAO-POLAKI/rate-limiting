@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import CreateAPIKeyModal from './CreateAPIKeyModal';
 import APIDocs from './APIDocs';
 
 const Dashboard = ({ user }) => {
@@ -10,6 +11,7 @@ const Dashboard = ({ user }) => {
   const [testResult, setTestResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
+  const [showCreateKeyModal, setShowCreateKeyModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -26,9 +28,10 @@ const Dashboard = ({ user }) => {
 
   const fetchStats = async () => {
     if (!user?.api_key) return;
-    
+
     try {
       const response = await axios.get(`/stats/${user.api_key}`);
+      console.log('Stats response:', response.data);
       setStats(response.data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
@@ -38,6 +41,7 @@ const Dashboard = ({ user }) => {
   const fetchSystemStats = async () => {
     try {
       const response = await axios.get('/system-stats');
+      console.log('System stats response:', response.data);
       setSystemStats(response.data);
     } catch (error) {
       console.error('Failed to fetch system stats:', error);
@@ -46,7 +50,7 @@ const Dashboard = ({ user }) => {
 
   const fetchUserApiKeys = async () => {
     if (!user?.access_token) return;
-    
+
     try {
       const response = await axios.get('/api-keys', {
         headers: { Authorization: `Bearer ${user.access_token}` }
@@ -59,11 +63,11 @@ const Dashboard = ({ user }) => {
 
   const testRateLimit = async () => {
     if (!user?.api_key) return;
-    
+
     setTestLoading(true);
     try {
-      const response = await axios.post('/test-endpoint', {}, {
-        headers: { 'X-API-Key': user.api_key }
+      const response = await axios.get('/api/protected', {
+        params: { api_key: user.api_key }
       });
       setTestResult({
         success: true,
@@ -71,10 +75,28 @@ const Dashboard = ({ user }) => {
         timestamp: new Date().toLocaleTimeString()
       });
     } catch (error) {
+      let errorMessage = 'Request failed';
+      let retryAfter = null;
+
+      if (error.response?.status === 429) {
+        const detail = error.response.data?.detail;
+        if (typeof detail === 'object' && detail.error) {
+          errorMessage = detail.error;
+          retryAfter = detail.retry_after;
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        } else {
+          errorMessage = 'Rate limit exceeded';
+        }
+      } else {
+        errorMessage = error.response?.data?.detail || error.message;
+      }
+
       setTestResult({
         success: false,
-        error: error.response?.data?.detail || 'Request failed',
+        error: errorMessage,
         status: error.response?.status,
+        retryAfter: retryAfter,
         timestamp: new Date().toLocaleTimeString()
       });
     } finally {
@@ -83,23 +105,17 @@ const Dashboard = ({ user }) => {
     }
   };
 
-  const createNewApiKey = async () => {
-    const name = prompt('Enter API key name:');
-    if (!name) return;
-
+  const createNewApiKey = async (keyData) => {
     try {
-      const response = await axios.post('/api-keys', {
-        name,
-        max_requests: 10,
-        window_seconds: 60
-      }, {
+      const response = await axios.post('/api-keys', keyData, {
         headers: { Authorization: `Bearer ${user.access_token}` }
       });
-      
+
       alert('API Key created successfully!');
       fetchUserApiKeys();
+      return response.data;
     } catch (error) {
-      alert('Failed to create API key: ' + (error.response?.data?.detail || error.message));
+      throw new Error(error.response?.data?.detail || error.message);
     }
   };
 
@@ -158,11 +174,10 @@ const Dashboard = ({ user }) => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               {tab.name}
             </button>
@@ -178,7 +193,7 @@ const Dashboard = ({ user }) => {
             <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
               👤 Account Information
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <p className="text-sm font-medium text-gray-500">Name</p>
                 <p className="text-lg text-gray-900 mt-1">{user.name}</p>
@@ -186,10 +201,6 @@ const Dashboard = ({ user }) => {
               <div>
                 <p className="text-sm font-medium text-gray-500">Email</p>
                 <p className="text-lg text-gray-900 mt-1">{user.email}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">User ID</p>
-                <p className="text-sm text-gray-900 mt-1 font-mono">{user.user_id}</p>
               </div>
             </div>
           </div>
@@ -200,7 +211,7 @@ const Dashboard = ({ user }) => {
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 🌐 System Overview
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <p className="text-2xl font-bold text-blue-600">{systemStats.total_users}</p>
                   <p className="text-sm text-blue-700">Total Users</p>
@@ -210,16 +221,12 @@ const Dashboard = ({ user }) => {
                   <p className="text-sm text-green-700">Total API Keys</p>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <p className="text-2xl font-bold text-purple-600">{systemStats.total_requests_today}</p>
-                  <p className="text-sm text-purple-700">Requests Today</p>
+                  <p className="text-2xl font-bold text-purple-600">{systemStats.total_requests_24h}</p>
+                  <p className="text-sm text-purple-700">Requests (24h)</p>
                 </div>
                 <div className="text-center p-4 bg-orange-50 rounded-lg">
-                  <p className="text-2xl font-bold text-orange-600">{systemStats.active_rate_limits}</p>
-                  <p className="text-sm text-orange-700">Active Limits</p>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <p className="text-2xl font-bold text-gray-600">{systemStats.system_status}</p>
-                  <p className="text-sm text-gray-700">System Status</p>
+                  <p className="text-2xl font-bold text-orange-600">{systemStats.active_api_keys_24h}</p>
+                  <p className="text-sm text-orange-700">Active Keys (24h)</p>
                 </div>
               </div>
             </div>
@@ -231,28 +238,55 @@ const Dashboard = ({ user }) => {
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 📊 Your Usage Statistics
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <p className="text-2xl font-bold text-blue-600">{stats.total_requests}</p>
-                  <p className="text-sm text-blue-700">Total Requests</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.total_requests_24h}</p>
+                  <p className="text-sm text-blue-700">Total Requests (24h)</p>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <p className="text-2xl font-bold text-green-600">{stats.allowed_requests}</p>
-                  <p className="text-sm text-green-700">✅ Allowed</p>
-                </div>
-                <div className="text-center p-4 bg-red-50 rounded-lg">
-                  <p className="text-2xl font-bold text-red-600">{stats.rejected_requests}</p>
-                  <p className="text-sm text-red-700">❌ Rejected</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.current_window_requests}</p>
+                  <p className="text-sm text-green-700">🕐 Current Window</p>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <p className="text-2xl font-bold text-purple-600">{stats.last_hour_requests}</p>
-                  <p className="text-sm text-purple-700">⏰ Last Hour</p>
-                </div>
-                <div className="text-center p-4 bg-orange-50 rounded-lg">
-                  <p className="text-2xl font-bold text-orange-600">{stats.last_day_requests}</p>
-                  <p className="text-sm text-orange-700">📅 Last Day</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {stats.rate_limit ? `${stats.rate_limit.max_requests}/${stats.rate_limit.window_seconds}s` : 'N/A'}
+                  </p>
+                  <p className="text-sm text-purple-700">⚡ Rate Limit</p>
                 </div>
               </div>
+
+              {/* Additional details */}
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-gray-900 mb-2">Last Request</h3>
+                  <p className="text-sm text-gray-600">
+                    {stats.last_request ? new Date(stats.last_request).toLocaleString() : 'No requests yet'}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-gray-900 mb-2">Window Started</h3>
+                  <p className="text-sm text-gray-600">
+                    {stats.window_start ? new Date(stats.window_start).toLocaleString() : 'No window active'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Endpoint breakdown */}
+              {stats.endpoint_breakdown && Object.keys(stats.endpoint_breakdown).length > 0 && (
+                <div className="mt-6">
+                  <h3 className="font-medium text-gray-900 mb-3">📍 Endpoint Usage (24h)</h3>
+                  <div className="space-y-2">
+                    {Object.entries(stats.endpoint_breakdown).map(([endpoint, count]) => (
+                      <div key={endpoint} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                        <code className="text-sm text-gray-700">{endpoint}</code>
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
+                          {count} requests
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -266,27 +300,11 @@ const Dashboard = ({ user }) => {
                 🔑 API Key Management
               </h2>
               <button
-                onClick={createNewApiKey}
+                onClick={() => setShowCreateKeyModal(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
               >
                 ➕ Create New API Key
               </button>
-            </div>
-
-            {/* Current API Key */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium text-gray-900 mb-2">Current API Key</h3>
-              <div className="flex items-center space-x-2">
-                <code className="bg-white px-3 py-2 rounded border flex-1 font-mono text-sm">
-                  {user.api_key || 'No API key available'}
-                </code>
-                <button
-                  onClick={() => navigator.clipboard.writeText(user.api_key)}
-                  className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded text-sm"
-                >
-                  📋 Copy
-                </button>
-              </div>
             </div>
 
             {/* API Keys List */}
@@ -296,18 +314,30 @@ const Dashboard = ({ user }) => {
                 <div className="space-y-3">
                   {userApiKeys.map((apiKey, index) => (
                     <div key={index} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex-1">
                           <h4 className="font-medium text-gray-900">{apiKey.name}</h4>
-                          <code className="text-sm text-gray-600 font-mono">{apiKey.api_key}</code>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <code className="text-sm text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">
+                              {apiKey.api_key}
+                            </code>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(apiKey.api_key)}
+                              className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded text-xs"
+                            >
+                              📋 Copy
+                            </button>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-gray-600">
                             {apiKey.max_requests} req / {apiKey.window_seconds}s
                           </p>
-                          <span className={`inline-block px-2 py-1 text-xs rounded ${
-                            apiKey.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
+                          <p className="text-xs text-gray-500">
+                            (~{Math.round((apiKey.max_requests * 60) / apiKey.window_seconds)} req/min)
+                          </p>
+                          <span className={`inline-block px-2 py-1 text-xs rounded ${apiKey.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
                             {apiKey.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </div>
@@ -329,9 +359,10 @@ const Dashboard = ({ user }) => {
             🧪 Rate Limit Testing
           </h2>
           <p className="text-gray-600 mb-6">
-            Test your rate limiting functionality. You can make up to 10 requests per minute.
+            Test your rate limiting functionality. Demo users can make up to 10 requests per minute (10 requests per 60 seconds).
+            Try clicking the test button rapidly to see rate limiting in action!
           </p>
-          
+
           <div className="flex space-x-4 mb-6">
             <button
               onClick={testRateLimit}
@@ -358,7 +389,7 @@ const Dashboard = ({ user }) => {
                 <h3 className="font-semibold">Test Result</h3>
                 <span className="text-sm text-gray-500">{testResult.timestamp}</span>
               </div>
-              
+
               <div className={`p-3 rounded ${testResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                 {testResult.success ? (
                   <div>
@@ -373,6 +404,11 @@ const Dashboard = ({ user }) => {
                     <p className="text-red-700 text-sm mt-1">
                       Status: {testResult.status} | Error: {testResult.error}
                     </p>
+                    {testResult.status === 429 && testResult.retryAfter && (
+                      <p className="text-red-600 text-sm mt-2 font-medium">
+                        🔄 Rate limit exceeded. Refresh in {testResult.retryAfter}s
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -384,6 +420,14 @@ const Dashboard = ({ user }) => {
       {activeTab === 'docs' && (
         <APIDocs user={user} />
       )}
+
+      {/* Create API Key Modal */}
+      <CreateAPIKeyModal
+        isOpen={showCreateKeyModal}
+        onClose={() => setShowCreateKeyModal(false)}
+        onCreateKey={createNewApiKey}
+        user={user}
+      />
     </div>
   );
 };

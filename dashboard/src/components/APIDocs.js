@@ -21,66 +21,6 @@ const APIDocs = ({ user }) => {
       }
     },
     {
-      method: 'POST',
-      path: '/register',
-      description: 'Register a new user',
-      requiresAuth: false,
-      requiresApiKey: false,
-      example: {
-        name: 'John Doe',
-        email: 'john@example.com',
-        password: 'password123'
-      }
-    },
-    {
-      method: 'POST',
-      path: '/login',
-      description: 'Login user and return access token',
-      requiresAuth: false,
-      requiresApiKey: false,
-      example: {
-        email: 'john@example.com',
-        password: 'password123'
-      }
-    },
-    {
-      method: 'GET',
-      path: '/stats/{api_key}',
-      description: 'Get usage statistics for an API key',
-      requiresAuth: false,
-      requiresApiKey: false,
-      example: null,
-      urlParams: true
-    },
-    {
-      method: 'POST',
-      path: '/api-keys',
-      description: 'Create a new API key for authenticated user',
-      requiresAuth: true,
-      requiresApiKey: false,
-      example: {
-        name: 'My New API Key',
-        max_requests: 10,
-        window_seconds: 60
-      }
-    },
-    {
-      method: 'GET',
-      path: '/api-keys',
-      description: 'List all API keys for authenticated user',
-      requiresAuth: true,
-      requiresApiKey: false,
-      example: null
-    },
-    {
-      method: 'GET',
-      path: '/system-stats',
-      description: 'Get overall system statistics',
-      requiresAuth: false,
-      requiresApiKey: false,
-      example: null
-    },
-    {
       method: 'GET',
       path: '/health',
       description: 'Health check endpoint',
@@ -131,7 +71,7 @@ const APIDocs = ({ user }) => {
       };
 
       const response = await axios(config);
-      
+
       setTestResult({
         success: true,
         status: response.status,
@@ -172,19 +112,17 @@ const APIDocs = ({ user }) => {
               <div
                 key={index}
                 onClick={() => selectEndpoint(endpoint)}
-                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                  selectedEndpoint?.path === endpoint.path
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
+                className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedEndpoint?.path === endpoint.path
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300'
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${
-                      endpoint.method === 'GET' ? 'bg-green-100 text-green-800' :
+                    <span className={`px-2 py-1 text-xs font-medium rounded ${endpoint.method === 'GET' ? 'bg-green-100 text-green-800' :
                       endpoint.method === 'POST' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                        'bg-gray-100 text-gray-800'
+                      }`}>
                       {endpoint.method}
                     </span>
                     <code className="text-sm font-mono">{endpoint.path}</code>
@@ -257,18 +195,16 @@ const APIDocs = ({ user }) => {
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium">Response</h4>
                     <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 text-xs font-medium rounded ${
-                        testResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`px-2 py-1 text-xs font-medium rounded ${testResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
                         {testResult.status}
                       </span>
                       <span className="text-xs text-gray-500">{testResult.timestamp}</span>
                     </div>
                   </div>
 
-                  <div className={`p-3 rounded border ${
-                    testResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                  }`}>
+                  <div className={`p-3 rounded border ${testResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                    }`}>
                     <pre className="text-sm overflow-auto max-h-64">
                       {JSON.stringify(testResult.success ? testResult.data : testResult.error, null, 2)}
                     </pre>

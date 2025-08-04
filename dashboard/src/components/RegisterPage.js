@@ -28,16 +28,41 @@ const RegisterPage = ({ onLogin }) => {
     try {
       const response = await axios.post('/register', formData);
       const userData = response.data;
-      
+
       setSuccess('Registration successful! Logging you in...');
-      
+
       // Auto-login after successful registration
       setTimeout(() => {
         onLogin(userData);
       }, 1000);
-      
+
     } catch (error) {
-      setError(error.response?.data?.detail || 'Registration failed');
+      console.error('Registration error:', error);
+
+      let errorMessage = 'Registration failed';
+
+      if (error.response?.data) {
+        // Handle different error response formats
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          // Handle FastAPI HTTPException format
+          if (typeof error.response.data.detail === 'string') {
+            errorMessage = error.response.data.detail;
+          } else if (Array.isArray(error.response.data.detail)) {
+            // Handle validation errors array
+            errorMessage = error.response.data.detail.map(err => err.msg).join(', ');
+          } else {
+            errorMessage = 'Registration validation failed';
+          }
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -54,7 +79,7 @@ const RegisterPage = ({ onLogin }) => {
             Get started with our rate limiting service
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
@@ -72,7 +97,7 @@ const RegisterPage = ({ onLogin }) => {
                 onChange={handleChange}
               />
             </div>
-            
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email Address
@@ -89,7 +114,7 @@ const RegisterPage = ({ onLogin }) => {
                 onChange={handleChange}
               />
             </div>
-            
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password

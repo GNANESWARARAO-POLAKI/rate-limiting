@@ -3,10 +3,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import apiClient, { setLogoutFunction } from './utils/apiClient';
 import { saveUserSession, getUserSession, clearUserSession, extendSession } from './utils/sessionManager';
 import { ToastProvider } from './contexts/ToastContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Navigation from './components/Navigation';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import Dashboard from './components/Dashboard';
+import DebugLogin from './components/DebugLogin';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -32,11 +34,11 @@ function App() {
   useEffect(() => {
     const initializeAuth = async () => {
       const userData = getUserSession();
-      
+
       if (userData) {
         // Validate the token is still valid
         const isValid = await validateToken(userData);
-        
+
         if (isValid) {
           setUser(userData);
           setIsLoggedIn(true);
@@ -47,7 +49,7 @@ function App() {
           clearUserSession();
         }
       }
-      
+
       setIsLoading(false);
     };
 
@@ -57,7 +59,7 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData);
     setIsLoggedIn(true);
-    
+
     // Save to session storage
     saveUserSession(userData);
   };
@@ -65,7 +67,7 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     setIsLoggedIn(false);
-    
+
     // Clear session storage
     clearUserSession();
   };
@@ -88,51 +90,55 @@ function App() {
   }
 
   return (
-    <ToastProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <Navigation user={user} onLogout={handleLogout} />
-        
-        <Routes>
-          <Route 
-            path="/" 
-            element={
-              isLoggedIn ? 
-                <Navigate to="/dashboard" replace /> : 
-                <Navigate to="/register" replace />
-            } 
-          />
-          
-          <Route 
-            path="/login" 
-            element={
-              isLoggedIn ? 
-                <Navigate to="/dashboard" replace /> : 
-                <LoginPage onLogin={handleLogin} />
-            } 
-          />
-          
-          <Route 
-            path="/register" 
-            element={
-              isLoggedIn ? 
-                <Navigate to="/dashboard" replace /> : 
-                <RegisterPage onLogin={handleLogin} />
-            } 
-          />
-          
-          <Route 
-            path="/dashboard" 
-            element={
-              isLoggedIn ? 
-                <Dashboard user={user} /> : 
-                <Navigate to="/login" replace />
-            } 
-          />
-        </Routes>
-      </div>
-    </Router>
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <Router>
+          <div className="min-h-screen bg-gray-50">
+            <Navigation user={user} onLogout={handleLogout} />
+
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  isLoggedIn ?
+                    <Navigate to="/dashboard" replace /> :
+                    <Navigate to="/register" replace />
+                }
+              />
+
+              <Route
+                path="/login"
+                element={
+                  isLoggedIn ?
+                    <Navigate to="/dashboard" replace /> :
+                    <LoginPage onLogin={handleLogin} />
+                }
+              />
+
+              <Route
+                path="/register"
+                element={
+                  isLoggedIn ?
+                    <Navigate to="/dashboard" replace /> :
+                    <RegisterPage onLogin={handleLogin} />
+                }
+              />
+
+              <Route
+                path="/dashboard"
+                element={
+                  isLoggedIn ?
+                    <Dashboard user={user} /> :
+                    <Navigate to="/login" replace />
+                }
+              />
+
+              <Route path="/debug" element={<DebugLogin />} />
+            </Routes>
+          </div>
+        </Router>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

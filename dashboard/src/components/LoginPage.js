@@ -23,11 +23,46 @@ const LoginPage = ({ onLogin }) => {
     setError('');
 
     try {
-      const response = await axios.post('/login', formData);
+      // Convert form data to FormData for FastAPI OAuth2PasswordRequestForm
+      const formDataForAPI = new FormData();
+      formDataForAPI.append('username', formData.email);
+      formDataForAPI.append('password', formData.password);
+
+      const response = await axios.post('/login', formDataForAPI, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
       const userData = response.data;
       onLogin(userData);
     } catch (error) {
-      setError(error.response?.data?.detail || 'Login failed');
+      console.error('Login error:', error);
+
+      let errorMessage = 'Login failed';
+
+      if (error.response?.data) {
+        // Handle different error response formats
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          // Handle FastAPI HTTPException format
+          if (typeof error.response.data.detail === 'string') {
+            errorMessage = error.response.data.detail;
+          } else if (Array.isArray(error.response.data.detail)) {
+            // Handle validation errors array
+            errorMessage = error.response.data.detail.map(err => err.msg).join(', ');
+          } else {
+            errorMessage = 'Invalid login credentials';
+          }
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -44,7 +79,7 @@ const LoginPage = ({ onLogin }) => {
             Access your rate limiting dashboard
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
@@ -63,7 +98,7 @@ const LoginPage = ({ onLogin }) => {
                 onChange={handleChange}
               />
             </div>
-            
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password

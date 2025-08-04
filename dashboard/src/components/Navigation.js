@@ -11,13 +11,13 @@ const Navigation = ({ user, onLogout }) => {
               🚀 Rate Limiting Service
             </Link>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             {user ? (
               <>
                 <span className="text-white">Welcome, {user.name}!</span>
-                <Link 
-                  to="/dashboard" 
+                <Link
+                  to="/dashboard"
                   className="text-white hover:text-blue-200 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Dashboard
@@ -31,14 +31,14 @@ const Navigation = ({ user, onLogout }) => {
               </>
             ) : (
               <>
-                <Link 
-                  to="/login" 
+                <Link
+                  to="/login"
                   className="text-white hover:text-blue-200 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Login
                 </Link>
-                <Link 
-                  to="/register" 
+                <Link
+                  to="/register"
                   className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md text-sm font-medium"
                 >
                   Register
