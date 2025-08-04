@@ -134,28 +134,46 @@ async def check_limit(request: RateLimitRequest, client_request: Request):
 
 # ==================== USER MANAGEMENT ====================
 
-@app.post("/register", response_model=AuthResponse)
+@app.post("/register")
 async def register_user_endpoint(user_data: UserRegistration):
     """Register a new user"""
     try:
         result = register_user(user_data)
         user_info = users_db[result["user_id"]]
         
-        return AuthResponse(
-            access_token=result["access_token"],
-            token_type="bearer",
-            user=UserResponse(
-                user_id=user_info["user_id"],
-                name=user_info["name"],
-                email=user_info["email"],
-                is_active=user_info["is_active"],
-                created_at=user_info["created_at"]
-            )
-        )
+        return {
+            "user_id": result["user_id"],
+            "name": user_info["name"],
+            "email": user_info["email"],
+            "access_token": result["access_token"],
+            "token_type": result["token_type"],
+            "api_key": result["api_key"],
+            "message": result["message"]
+        }
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+@app.post("/login")
+async def login_user_endpoint(user_credentials: UserLogin):
+    """Login user and return access token"""
+    try:
+        result = login_user(user_credentials.email, user_credentials.password)
+        
+        return {
+            "user_id": result["user_id"],
+            "name": result["name"],
+            "email": result["email"],
+            "access_token": result["access_token"],
+            "token_type": result["token_type"],
+            "api_key": result["api_key"],
+            "message": result["message"]
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 @app.post("/api-keys", response_model=APIKeyResponse)
 async def create_new_api_key(
@@ -285,6 +303,53 @@ async def get_system_stats():
         raise HTTPException(status_code=500, detail=f"Failed to get system stats: {str(e)}")
 
 # ==================== ADMIN ENDPOINTS ====================
+
+@app.post("/test-endpoint")
+async def test_endpoint(request: Request):
+    """Test endpoint for rate limiting demonstration"""
+    # Get API key from header
+    api_key = request.headers.get("X-API-Key")
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API key required in X-API-Key header")
+    
+    # Create a test rate limit request
+    rate_limit_request = RateLimitRequest(
+        api_key=api_key,
+        user_id="test_user",
+        endpoint="/test-endpoint"
+    )
+    
+    # Check rate limit
+    try:
+        api_key_config = verify_api_key(api_key)
+        client_ip = request.client.host if request.client else None
+        
+        result = check_rate_limit(
+            api_key=api_key,
+            api_key_config=api_key_config,
+            user_id="test_user",
+            endpoint="/test-endpoint",
+            client_ip=client_ip
+        )
+        
+        if not result.allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Rate limit exceeded. Try again in {result.retry_after} seconds."
+            )
+        
+        return {
+            "message": "Test request successful!",
+            "timestamp": datetime.now().isoformat(),
+            "remaining_quota": result.remaining_quota,
+            "endpoint": "/test-endpoint",
+            "status": "success"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/admin/reset-limits")
 async def admin_reset_limits(api_key: Optional[str] = None):

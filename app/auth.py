@@ -155,6 +155,19 @@ def register_user(user_data: UserRegistration) -> Dict[str, Any]:
     
     users_db[user_id] = user
     
+    # Create default API key for the user
+    api_key = generate_api_key()
+    key_data = {
+        "user_id": user_id,
+        "name": f"{user_data.name}'s API Key",
+        "email": user_data.email,
+        "max_requests": 10,  # Default 10 requests per minute
+        "window_seconds": 60,
+        "is_active": True,
+        "created_at": datetime.now()
+    }
+    api_keys_db[api_key] = key_data
+    
     # Generate access token
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
@@ -165,7 +178,61 @@ def register_user(user_data: UserRegistration) -> Dict[str, Any]:
         "user_id": user_id,
         "access_token": access_token,
         "token_type": "bearer",
+        "api_key": api_key,
         "message": "User registered successfully"
+    }
+
+def login_user(email: str, password: str) -> Dict[str, Any]:
+    """Authenticate user and return access token"""
+    # Find user by email
+    user = None
+    user_id = None
+    for uid, user_data in users_db.items():
+        if user_data["email"] == email:
+            user = user_data
+            user_id = uid
+            break
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    
+    # Verify password
+    if not verify_password(password, user["password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    
+    if not user["is_active"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account is deactivated"
+        )
+    
+    # Generate access token
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = create_access_token(
+        data={"sub": user_id}, expires_delta=access_token_expires
+    )
+    
+    # Find user's API key (assuming they have one from registration)
+    api_key = None
+    for key, key_data in api_keys_db.items():
+        if key_data["user_id"] == user_id:
+            api_key = key
+            break
+    
+    return {
+        "user_id": user_id,
+        "name": user["name"],
+        "email": user["email"],
+        "access_token": access_token,
+        "token_type": "bearer",
+        "api_key": api_key,
+        "message": "Login successful"
     }
 
 def create_api_key(user_id: str, key_request: APIKeyRequest) -> APIKey:
