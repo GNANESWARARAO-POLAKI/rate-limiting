@@ -1,0 +1,202 @@
+"""
+API Key Authentication and JWT Token Management
+Handles user registration, API key generation, and token validation
+"""
+from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+from fastapi import HTTPException, Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from pydantic import BaseModel
+import secrets
+import hashlib
+from config.settings import settings
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# JWT Security
+security = HTTPBearer()
+
+# In-memory storage (replace with database later)
+users_db = {}
+api_keys_db = {
+    "demo123": {
+        "user_id": "demo_user",
+        "name": "Demo User",
+        "email": "demo@example.com",
+        "max_requests": 10,  # Only 10 requests
+        "window_seconds": 60,  # per 60 seconds (10 per minute)
+        "created_at": datetime.now(),
+        "is_active": True
+    },
+    "demo_high": {
+        "user_id": "demo_user_high",
+        "name": "Demo User (High Limit)",
+        "email": "demo_high@example.com", 
+        "max_requests": 100,
+        "window_seconds": 60,
+        "created_at": datetime.now(),
+        "is_active": True
+    }
+}
+
+class User(BaseModel):
+    user_id: str
+    email: str
+    name: str
+    is_active: bool = True
+    created_at: datetime
+
+class APIKey(BaseModel):
+    api_key: str
+    user_id: str
+    name: str
+    max_requests: int = 100
+    window_seconds: int = 60
+    is_active: bool = True
+    created_at: datetime
+
+class UserRegistration(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class APIKeyRequest(BaseModel):
+    name: str
+    max_requests: int = 100
+    window_seconds: int = 60
+
+def hash_password(password: str) -> str:
+    """Hash a password"""
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def generate_api_key() -> str:
+    """Generate a secure API key"""
+    return f"rl_{secrets.token_urlsafe(32)}"
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """Create JWT access token"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    return encoded_jwt
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verify JWT token"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        payload = jwt.decode(credentials.credentials, settings.secret_key, algorithms=[settings.algorithm])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = users_db.get(user_id)
+    if user is None:
+        raise credentials_exception
+    return user
+
+def verify_api_key(api_key: str) -> Dict[str, Any]:
+    """Verify API key and return key info"""
+    if api_key not in api_keys_db:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key"
+        )
+    
+    key_info = api_keys_db[api_key]
+    if not key_info["is_active"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key is inactive"
+        )
+    
+    return key_info
+
+def register_user(user_data: UserRegistration) -> Dict[str, Any]:
+    """Register a new user"""
+    user_id = f"user_{secrets.token_urlsafe(16)}"
+    
+    # Check if email already exists
+    for existing_user in users_db.values():
+        if existing_user["email"] == user_data.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+    
+    # Create user
+    hashed_password = hash_password(user_data.password)
+    user = {
+        "user_id": user_id,
+        "email": user_data.email,
+        "name": user_data.name,
+        "password": hashed_password,
+        "is_active": True,
+        "created_at": datetime.now()
+    }
+    
+    users_db[user_id] = user
+    
+    # Generate access token
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = create_access_token(
+        data={"sub": user_id}, expires_delta=access_token_expires
+    )
+    
+    return {
+        "user_id": user_id,
+        "access_token": access_token,
+        "token_type": "bearer",
+        "message": "User registered successfully"
+    }
+
+def create_api_key(user_id: str, key_request: APIKeyRequest) -> APIKey:
+    """Create a new API key for user"""
+    if user_id not in users_db:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    api_key = generate_api_key()
+    key_data = {
+        "user_id": user_id,
+        "name": key_request.name,
+        "max_requests": key_request.max_requests,
+        "window_seconds": key_request.window_seconds,
+        "is_active": True,
+        "created_at": datetime.now()
+    }
+    
+    api_keys_db[api_key] = key_data
+    
+    return APIKey(api_key=api_key, **key_data)
+
+def get_user_api_keys(user_id: str) -> list:
+    """Get all API keys for a user"""
+    user_keys = []
+    for api_key, key_data in api_keys_db.items():
+        if key_data["user_id"] == user_id:
+            user_keys.append({
+                "api_key": api_key,
+                **key_data
+            })
+    return user_keys

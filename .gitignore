@@ -1,0 +1,147 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Development and testing files
+plan.md
+*_guide.py
+*_test.py
+test_*.py
+debug_*.py
+rapid_test.py
+quick_fix_test.py
+debug_limiter_test.py
+final_comprehensive_test.py
+final_verification.py
+user_endpoint_guide.py
+simple_user_guide.py
+complete_guide.py
+create_user_guide.py
+complete_user_workflow.py
+test_user_creation.py
+exhaust_test.py
+timing_debug.py
+test_api.py
+test_rate_limiting.py
+test_fixed_limiter.py
+
+# Documentation files (keep only essential ones)
+USER_CREATION_GUIDE.md
+HOW_TO_ADD_USERS_ENDPOINTS.md
+*_GUIDE.md
+
+# Temporary and setup files
+setup_*.py
+install_*.py
+*_setup.py
+
+# Test output and logs
+test_output/
+test_logs/
+*.test.log
+
+# Node.js (for dashboard)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Production builds
+build/
+dist/
