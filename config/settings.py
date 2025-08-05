@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     default_burst_size: int = 10   # burst capacity
     default_refill_rate: float = 1.67  # tokens per second (100/60)
     
-    # CORS
-    allowed_origins: list = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # CORS - Allow all origins
+    allowed_origins: list[str] = ["*", "localhost:8000", "localhost:3000"]  # Allow all origins
     
     class Config:
         env_file = ".env"

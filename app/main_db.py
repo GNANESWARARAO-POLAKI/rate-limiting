@@ -8,6 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 import uvicorn
+import logging
+
+# Configure logging to reduce SQLAlchemy verbosity
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
 
 from config.settings import settings
 from app.database import get_db
@@ -30,7 +36,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -214,6 +220,58 @@ async def check_limit(request: RateLimitRequest, client_request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@app.post("/check-limit-ip")
+async def check_limit_ip(request: Request):
+    """
+    Check rate limit for anonymous users using IP address
+    For websites that need to protect against anonymous user abuse
+    
+    Expected JSON body:
+    {
+        "api_key": "your_api_key",
+        "endpoint": "/api/some-endpoint" (optional, defaults to "/anonymous")
+    }
+    """
+    try:
+        # Parse request body
+        request_data = await request.json()
+        api_key = request_data.get("api_key")
+        endpoint = request_data.get("endpoint", "/anonymous")
+        
+        if not api_key:
+            raise HTTPException(status_code=400, detail="api_key is required")
+        
+        # Get client IP address
+        client_ip = request.client.host
+        if request.headers.get("x-forwarded-for"):
+            # Handle proxy/load balancer forwarded IPs
+            client_ip = request.headers.get("x-forwarded-for").split(",")[0].strip()
+        elif request.headers.get("x-real-ip"):
+            client_ip = request.headers.get("x-real-ip")
+        
+        # Use IP address as user_id for anonymous rate limiting
+        rate_limit_result = db_rate_limiter.check_rate_limit(
+            api_key=api_key,
+            user_id=f"ip_{client_ip}",  # Prefix with 'ip_' to distinguish from real user IDs
+            endpoint=endpoint,
+            method=request.method
+        )
+        
+        return {
+            "allowed": rate_limit_result["allowed"],
+            "remaining_quota": rate_limit_result.get("remaining", 0),
+            "retry_after": rate_limit_result.get("retry_after", 0),
+            "message": "Request allowed" if rate_limit_result["allowed"] else f"Rate limit exceeded for IP {client_ip}",
+            "endpoint": endpoint,
+            "client_ip": client_ip,
+            "identifier": f"ip_{client_ip}"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 @app.post("/api-keys")
 async def create_api_key_endpoint(
     key_request: APIKeyRequest, 
@@ -272,28 +330,57 @@ async def cleanup_logs(days: int = 30):
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint - Returns service and database status"""
+    from datetime import datetime
+    from sqlalchemy import text
+    
     try:
         from app.database import get_db_session
         with get_db_session() as db:
-            # Simple database query to check connectivity
-            db.execute("SELECT 1")
+            # Simple database query to check connectivity - properly wrapped with text()
+            result = db.execute(text("SELECT 1")).fetchone()
+            if result:
+                db_status = "connected"
+            else:
+                db_status = "error"
         
         return {
             "status": "healthy",
-            "database": "connected",
-            "version": "2.0.0"
+            "database": db_status,
+            "version": "2.0.0",
+            "service": "rate-limiting-api",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
         }
     except Exception as e:
         return {
             "status": "unhealthy",
             "database": "disconnected",
-            "error": str(e)
+            "error": str(e),
+            "service": "rate-limiting-api",
+            "version": "2.0.0",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
         }
 
 if __name__ == "__main__":
+    import socket
+    
+    # Get local IP address
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+    except Exception:
+        local_ip = "Unable to detect"
+    
+    print("🚀 Starting Rate Limiting API with Database Storage...")
+    print(f"📍 Local Access: http://localhost:8000")
+    print(f"🌍 Network Access: http://{local_ip}:8000")
+    print(f"📖 API Docs: http://localhost:8000/docs")
+    print(f"🌐 Network Docs: http://{local_ip}:8000/docs")
+    print("=" * 60)
+    
     uvicorn.run(
-        "main:app",
+        "app.main_db:app",
         host="0.0.0.0",
         port=8000,
         reload=True

@@ -11,13 +11,24 @@ const APIDocs = ({ user }) => {
     {
       method: 'POST',
       path: '/check-limit',
-      description: 'Check if request is within rate limit',
+      description: 'Check if request is within rate limit (for authenticated users)',
       requiresAuth: false,
       requiresApiKey: true,
       example: {
         api_key: user?.api_key || 'your_api_key',
         user_id: 'user123',
         endpoint: '/api/data'
+      }
+    },
+    {
+      method: 'POST',
+      path: '/check-limit-ip',
+      description: 'Check rate limit for anonymous users using IP address',
+      requiresAuth: false,
+      requiresApiKey: true,
+      example: {
+        api_key: user?.api_key || 'your_api_key',
+        endpoint: '/api/public-endpoint'
       }
     },
     {
