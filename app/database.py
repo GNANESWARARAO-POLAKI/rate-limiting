@@ -11,7 +11,7 @@ import os
 from .database_models import Base
 
 # Database URL - can be configured via environment variable
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./rate_limiting.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_mpaY6KvlkH4A@ep-billowing-tree-a1ru1bcw-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
 
 # For SQLite, we need special configuration
 if DATABASE_URL.startswith("sqlite"):
