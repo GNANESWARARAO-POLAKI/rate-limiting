@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     redis_db: int = 0
     
     # JWT Authentication
-    secret_key: str = "your-super-secret-key-change-this-in-production"
+    secret_key: str = os.getenv("SECRET_KEY", "your-super-secret-key-change-this-in-production")
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     
