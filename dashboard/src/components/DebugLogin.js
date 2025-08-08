@@ -19,7 +19,7 @@ const DebugLogin = () => {
             formData.append('username', email);
             formData.append('password', password);
 
-            const response = await axios.post('http://localhost:8000/login', formData, {
+            const response = await axios.post('https://rate-limiting.onrender.com/login', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
@@ -56,7 +56,7 @@ const DebugLogin = () => {
 
             console.log('Testing registration with:', userData);
 
-            const response = await axios.post('http://localhost:8000/register', userData);
+            const response = await axios.post('https://rate-limiting.onrender.com/register', userData);
 
             console.log('Registration response:', response.data);
             setResult(JSON.stringify(response.data, null, 2));
@@ -138,7 +138,7 @@ const DebugLogin = () => {
 
             <div className="mt-8 p-4 bg-gray-50 rounded">
                 <h3 className="font-bold mb-2">🔍 Debug Info:</h3>
-                <p><strong>Backend URL:</strong> http://localhost:8000</p>
+                <p><strong>Backend URL:</strong> https://rate-limiting.onrender.com</p>
                 <p><strong>Demo Credentials:</strong> demo@example.com / demo123</p>
                 <p><strong>Console:</strong> Check browser console for detailed logs</p>
             </div>

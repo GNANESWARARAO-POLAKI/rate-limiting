@@ -58,38 +58,28 @@ async def startup_event():
 async def root():
     """Root endpoint with service information"""
     return {
-        "message": "Rate Limiting API with Database Storage",
-        "version": "2.0.0",
-        "storage": "Database (Persistent)",
-        "docs": "/docs",
-        "redoc": "/redoc",
-        "essential_endpoints": {
-            "check_rate_limit": {
+            "message": "Rate Limiting API with Database Storage",
+            "version": "2.0.0", 
+            "frontend": "https://rate-limiting-service.vercel.app/",
+            "storage": "Database (Persistent)",
+            "essential_endpoints": {
+                "check_rate_limit": {
                 "method": "POST",
                 "url": "/check-limit",
-                "description": "Check if request is within rate limit - Main functionality"
-            },
-            "register": {
+                "description": "Check if request is within rate limit"
+                },
+                "check_rate_limit_ip": {
                 "method": "POST", 
-                "url": "/register",
-                "description": "Register a new user"
-            },
-            "login": {
-                "method": "POST",
-                "url": "/login", 
-                "description": "Login and get access token"
-            },
-            "create_api_key": {
-                "method": "POST",
-                "url": "/api-keys",
-                "description": "Create API key (requires authentication)"
+                "url": "/check-limit-ip",
+                "description": "Check rate limit by IP address"
+                },
+                "health": {
+                "method": "GET",
+                "url": "/health", 
+                "description": "Health check endpoint"
+                }
             }
-        },
-        "demo_info": {
-            "api_key": "demo123",
-            "description": "Use this demo API key for testing rate limiting"
-        }
-    }
+            }
     
 @app.post("/register")
 async def register_endpoint(user_data: UserRegistration, db: Session = Depends(get_db)):

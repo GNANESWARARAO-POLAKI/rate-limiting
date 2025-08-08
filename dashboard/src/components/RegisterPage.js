@@ -26,7 +26,7 @@ const RegisterPage = ({ onLogin }) => {
     setSuccess('');
 
     try {
-      const response = await axios.post('/register', formData);
+      const response = await axios.post('https://rate-limiting.onrender.com/register', formData);
       const userData = response.data;
 
       setSuccess('Registration successful! Logging you in...');

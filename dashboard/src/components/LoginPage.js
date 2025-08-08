@@ -28,7 +28,7 @@ const LoginPage = ({ onLogin }) => {
       formDataForAPI.append('username', formData.email);
       formDataForAPI.append('password', formData.password);
 
-      const response = await axios.post('/login', formDataForAPI, {
+      const response = await axios.post('https://rate-limiting.onrender.com/login', formDataForAPI, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

@@ -1,7 +1,9 @@
 import axios from 'axios';
 
-// Create axios instance with interceptors
-const apiClient = axios.create();
+// Create axios instance with base URL and interceptors
+const apiClient = axios.create({
+    baseURL: process.env.REACT_APP_API_URL || 'https://rate-limiting.onrender.com'
+});
 
 // Store the logout function to be set by App component
 let logoutFunction = null;

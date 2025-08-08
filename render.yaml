@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: rate-limiting-api
+    env: python
+    plan: free
+    runtime: python-3.13.4
+    buildCommand: |
+      python --version
+      pip install --upgrade pip
+      pip install --upgrade --force-reinstall -r requirements.txt
+    startCommand: python -m app.main_db
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_mpaY6KvlkH4A@ep-billowing-tree-a1ru1bcw-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+    healthCheckPath: /health

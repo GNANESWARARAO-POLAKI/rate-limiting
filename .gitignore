@@ -54,6 +54,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Environment backups (with real values)
+.env.backup
+.env.production.backup
+
 # IDEs
 .vscode/
 .idea/
@@ -125,6 +129,28 @@ yarn-error.log*
 *.db
 *.sqlite
 *.sqlite3
+rate_limiting.db
+
+# Archive and unused files
+_archive_unused/
+*_archive/
+archived/
+unused/
+old_*/
+legacy/
+
+# Unwanted project folders
+api/
+test_files/
+examples/
+documentation/
+
+# Backup files
+*.backup
+*.bak
+*.old
+*.orig
+*.tmp
 
 # Logs
 logs/
@@ -145,3 +171,33 @@ pids/
 # Production builds
 build/
 dist/
+
+# Deployment and configuration backups
+render.yaml.backup
+vercel.json.backup
+*.config.backup
+
+# Additional unwanted files
+test-website/
+examples/
+documentation/old_*
+*.draft
+*.wip
+
+# Frontend dashboard build artifacts (keep source but ignore builds)
+dashboard/build/
+dashboard/dist/
+dashboard/.vercel/
+dashboard/node_modules/
+
+# Additional development folders
+temp/
+tmp/
+sandbox/
+playground/
+draft/
+
+# Docker (not used)
+Dockerfile*
+docker-compose*
+.dockerignore
